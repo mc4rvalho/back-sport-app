@@ -1,0 +1,130 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+  moduleFormat = "cjs"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  ADMIN
+  PLAYER
+  FINANCIAL
+  MANAGER
+}
+
+enum EventType {
+  TRAINING
+  TOURNAMENT
+}
+
+enum PresenceStatus {
+  CONFIRMED
+  ABSENT
+  MAYBE
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  OVERDUE
+}
+
+model User {
+  id       String @id @default(uuid())
+  name     String
+  email    String @unique
+  password String
+  role     Role   @default(PLAYER)
+
+  // Perfil do Atleta
+  points   Int     @default(0)
+  photoUrl String?
+  isActive Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relacionamentos
+  matchesAsPlayerA Match[]         @relation("PlayerAMatches")
+  matchesAsPlayerB Match[]         @relation("PlayerBMatches")
+  tournaments      Tournament[]    @relation("TournamentPlayers")
+  presences        EventPresence[]
+  payments         Payment[]
+}
+
+model Tournament {
+  id          String    @id @default(uuid())
+  name        String
+  startDate   DateTime
+  endDate     DateTime?
+  description String?
+  isActive    Boolean   @default(true)
+
+  // Relacionamentos
+  players User[]  @relation("TournamentPlayers")
+  matches Match[]
+}
+
+model Match {
+  id   String   @id @default(uuid())
+  date DateTime @default(now())
+
+  playerAId String
+  playerA   User   @relation("PlayerAMatches", fields: [playerAId], references: [id])
+  scoreA    Int
+
+  playerBId String
+  playerB   User   @relation("PlayerBMatches", fields: [playerBId], references: [id])
+  scoreB    Int
+
+  isValidated Boolean @default(false)
+
+  tournamentId String?
+  tournament   Tournament? @relation(fields: [tournamentId], references: [id])
+
+  createdAt DateTime @default(now())
+}
+
+model Event {
+  id          String    @id @default(uuid())
+  title       String
+  type        EventType
+  date        DateTime
+  location    String?
+  description String?
+
+  createdAt DateTime @default(now())
+
+  presences EventPresence[]
+}
+
+model EventPresence {
+  id     String         @id @default(uuid())
+  status PresenceStatus @default(MAYBE)
+
+  eventId String
+  event   Event  @relation(fields: [eventId], references: [id])
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+
+  @@unique([eventId, userId])
+}
+
+model Payment {
+  id          String        @id @default(uuid())
+  description String
+  amount      Float
+  dueDate     DateTime
+  status      PaymentStatus @default(PENDING)
+  paymentDate DateTime?
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
